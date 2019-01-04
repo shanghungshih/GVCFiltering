@@ -21,3 +21,6 @@ git clone https://github.com/shanghungshih/GVCFiltering.git
 java -jar GVCFiltering.jar 0.01 0.8 population_test.gvcf test.vcf
 ```
 
+### output
+- output.vcf (Note: one alternative per line!)
+- output.log
