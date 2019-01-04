@@ -178,7 +178,7 @@ public class Annotation {
 
 
     public static void main(String[] args) throws IOException {
-
+        long startTime = System.currentTimeMillis();
         Annotation annotation = new Annotation(args[0], args[1], args[2], args[3]);
 
         Dictionary mapper = new Hashtable();
@@ -252,12 +252,25 @@ public class Annotation {
                     annotation.total_vcf_variants++;
                 }
             }
+            printWriter.close();
+
+            FileWriter logfileWriter = new FileWriter(annotation.vcf.split("\\.")[0] + "_filtered_maf_below_" + annotation.maf_threshold + "_conf_above_" + annotation.conf_threshold + ".log");
+            PrintWriter printlogWriter = new PrintWriter(logfileWriter);
+
             int tmp = annotation.total_population_variants - annotation.failed_variants;
             System.out.println("population INFO\tpopulation database has: " + annotation.total_population_sample + " samples");
             System.out.println("population INFO\ttotal population variants: " + annotation.total_population_variants + ", with " + tmp + " loaded variants, and " + annotation.failed_variants + " failed column incomplete variants");
             System.out.println("vcf INFO\tvcf has: " + annotation.total_vcf_sample + " samples");
             System.out.println("vcf INFO\tpass/total variants: " + annotation.passVariants + "/" + annotation.total_vcf_variants);
-            printWriter.close();
+            System.out.println("Using Time:" + (System.currentTimeMillis() - startTime)/1000 + " seconds");
+
+            printlogWriter.println("population INFO\tpopulation database has: " + annotation.total_population_sample + " samples");
+            printlogWriter.println("population INFO\ttotal population variants: " + annotation.total_population_variants + ", with " + tmp + " loaded variants, and " + annotation.failed_variants + " failed column incomplete variants");
+            printlogWriter.println("vcf INFO\tvcf has: " + annotation.total_vcf_sample + " samples");
+            printlogWriter.println("vcf INFO\tpass/total variants: " + annotation.passVariants + "/" + annotation.total_vcf_variants);
+            printlogWriter.println("Using Time:" + (System.currentTimeMillis() - startTime)/1000 + " seconds");
+            printlogWriter.close();
+
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
