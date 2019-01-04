@@ -1,3 +1,6 @@
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+
 import java.io.*;
 import java.util.Dictionary;
 import java.util.Hashtable;
@@ -22,6 +25,23 @@ public class Annotation {
         this.total_vcf_variants = 0;
         this.failed_variants = 0;
         this.tag = "";
+    }
+
+    public static class Args {
+        @Parameter(names = { "--allele_frequency", "-af" }, description = "Keep variants with allele frequency <= threshold", required = true)
+        private String af;
+
+        @Parameter(names = { "--confidence", "-conf" }, description = "Keep variants with confidence > threshold", required = true)
+        private String conf;
+
+        @Parameter(names = { "--population", "-p" }, description = "Input population gvcf file", required = true)
+        private String p;
+
+        @Parameter(names = { "--vcf", "-v" }, description = "Input vcf file to be filtered", required = true)
+        private String v;
+
+        @Parameter(names = { "--export_population", "-e" }, description = "Export population gvcf file with GTF(genotype frequency), AF(allele frequency) and CONF(confidence) annotation", required = false)
+        private boolean e;
     }
 
     private static String passMAFLines(Annotation annotation, String line, String passLine) {
@@ -178,9 +198,13 @@ public class Annotation {
 
 
     public static void main(String[] args) throws IOException {
-        long startTime = System.currentTimeMillis();
-        Annotation annotation = new Annotation(args[0], args[1], args[2], args[3]);
 
+        Args argv = new Args();
+        new JCommander(argv).parse(args);
+
+        long startTime = System.currentTimeMillis();
+
+        Annotation annotation = new Annotation(argv.af, argv.conf, argv.p, argv.v);
         Dictionary mapper = new Hashtable();
 
         // population gvcf
@@ -188,8 +212,12 @@ public class Annotation {
             String line, line_GTF, line_AF, line_filtered;
             String[] line_filtered_array;
 
-//            FileWriter fileWriter = new FileWriter(annotation.population_file.split("\\.")[0] + "_GTF_AF.g.vcf");
-//            PrintWriter printWriter = new PrintWriter(fileWriter);
+            FileWriter fileWriter = null;
+            PrintWriter printWriter = null;
+            if (argv.e) {
+                fileWriter = new FileWriter(annotation.population_file.split("\\.")[0] + "_GTF_AF.g.vcf");
+                printWriter = new PrintWriter(fileWriter);
+            }
             while ((line = br.readLine())!=null) {
                 if (annotation.total_population_variants % 10000 == 0 && annotation.total_population_variants != 0)
                     System.out.println("loading population database: " + annotation.total_population_variants + " variants");
@@ -198,14 +226,16 @@ public class Annotation {
                     int[] tmp = sampleCounter(line);
                     annotation.total_population_sample = tmp[0];
                     annotation.col_INFO = tmp[1];
-//                    printWriter.println(line+"\tCONF"+"\tGTF"+"\tAF");
+                    if (argv.e)
+                        printWriter.println(line+"\tCONF"+"\tGTF"+"\tAF");
                 }
                 else {
 //                    System.out.println(line);
                     line_GTF = GenotypeFrequencyCounter(annotation.col_INFO, annotation.total_population_sample, line);
                     if (!line_GTF.equals("failed")) {
                         line_AF = AlleleFrequencyCounter(line_GTF);
-//                        printWriter.println(line_AF);
+                        if (argv.e)
+                            printWriter.println(line_AF);
                         line_filtered = filteringMAF(annotation.maf_threshold, annotation.conf_threshold, line_AF);
                         if (line_filtered != "empty") {
                             line_filtered_array = line_filtered.split("\n");
@@ -220,9 +250,10 @@ public class Annotation {
                 }
             }
             int tmp = annotation.total_population_variants - annotation.failed_variants;
-            System.out.println("population INFO\tpopulation database has: " + annotation.total_population_sample + " samples");
-            System.out.println("population INFO\ttotal population variants: " + annotation.total_population_variants + ", with " + tmp + " loaded variants, and " + annotation.failed_variants + " failed column incomplete variants");
-//            printWriter.close();
+            System.out.println("INFO\t[ population database ] has: " + annotation.total_population_sample + " samples");
+            System.out.println("INFO\ttotal population variants: " + annotation.total_population_variants + ", with " + tmp + " loaded variants, and " + annotation.failed_variants + " failed variants");
+            if (argv.e)
+                printWriter.close();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
@@ -258,17 +289,19 @@ public class Annotation {
             PrintWriter printlogWriter = new PrintWriter(logfileWriter);
 
             int tmp = annotation.total_population_variants - annotation.failed_variants;
-            System.out.println("population INFO\tpopulation database has: " + annotation.total_population_sample + " samples");
-            System.out.println("population INFO\ttotal population variants: " + annotation.total_population_variants + ", with " + tmp + " loaded variants, and " + annotation.failed_variants + " failed column incomplete variants");
-            System.out.println("vcf INFO\tvcf has: " + annotation.total_vcf_sample + " samples");
-            System.out.println("vcf INFO\tpass/total variants: " + annotation.passVariants + "/" + annotation.total_vcf_variants);
-            System.out.println("Using Time:" + (System.currentTimeMillis() - startTime)/1000 + " seconds");
+            System.out.println("INFO\tallele frequency threshold: " + argv.af + ", confidence threshold: " + argv.conf);
+            System.out.println("INFO\t[ population database ] has: " + annotation.total_population_sample + " samples");
+            System.out.println("INFO\ttotal population variants: " + annotation.total_population_variants + ", with " + tmp + " loaded variants, and " + annotation.failed_variants + " failed variants");
+            System.out.println("INFO\t[ vcf ] has: " + annotation.total_vcf_sample + " samples");
+            System.out.println("INFO\tpass/total variants: " + annotation.passVariants + "/" + annotation.total_vcf_variants);
+            System.out.println("INFO\tUsing Time: " + (System.currentTimeMillis() - startTime)/1000 + " seconds");
 
-            printlogWriter.println("population INFO\tpopulation database has: " + annotation.total_population_sample + " samples");
-            printlogWriter.println("population INFO\ttotal population variants: " + annotation.total_population_variants + ", with " + tmp + " loaded variants, and " + annotation.failed_variants + " failed column incomplete variants");
-            printlogWriter.println("vcf INFO\tvcf has: " + annotation.total_vcf_sample + " samples");
-            printlogWriter.println("vcf INFO\tpass/total variants: " + annotation.passVariants + "/" + annotation.total_vcf_variants);
-            printlogWriter.println("Using Time:" + (System.currentTimeMillis() - startTime)/1000 + " seconds");
+            printlogWriter.println("INFO\tallele frequency threshold: " + argv.af + ", confidence threshold: " + argv.conf);
+            printlogWriter.println("INFO\t[ population database ] has: " + annotation.total_population_sample + " samples");
+            printlogWriter.println("INFO\ttotal population variants: " + annotation.total_population_variants + ", with " + tmp + " loaded variants, and " + annotation.failed_variants + " failed variants");
+            printlogWriter.println("INFO\t[ vcf ] has: " + annotation.total_vcf_sample + " samples");
+            printlogWriter.println("INFO\tpass/total variants: " + annotation.passVariants + "/" + annotation.total_vcf_variants);
+            printlogWriter.println("INFO\tUsing Time: " + (System.currentTimeMillis() - startTime)/1000 + " seconds");
             printlogWriter.close();
 
         } catch (FileNotFoundException e) {
