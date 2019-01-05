@@ -271,7 +271,7 @@ public class Annotation {
 
                 if (line.startsWith("#")) {
                     annotation.total_vcf_sample = sampleCounter(line)[0];
-                    printWriter.println(line+"\tfiltered_maf_above_" + annotation.maf_threshold);
+                    printWriter.println(line+"\tfiltered_maf_below_" + annotation.maf_threshold);
                 }
                 else {
                     line_filtered = filteringMAFformat(line);
