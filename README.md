@@ -1,5 +1,5 @@
 # GVCFiltering
-Filtering vcf(variant calling) with population gvcf(genome.vcf) from joint variant calling
+Filtering vcf(variant calling) with population gvcf(genome.vcf)
 
 ## Prerequisite
 - JDK 11
